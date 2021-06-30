@@ -8,7 +8,7 @@ import spring.first.fitness.services.PostService;
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(maxAge = 3600)
 @RequestMapping(value = "/api")
 public class HomeController {
 
