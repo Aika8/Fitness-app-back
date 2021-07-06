@@ -1,6 +1,7 @@
 package spring.first.fitness.controllers;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import spring.first.fitness.entity.Post;
 import spring.first.fitness.services.PostService;
@@ -27,4 +28,9 @@ public class HomeController {
     }
 
 
+    @PostMapping(value = "/post")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Post addPost(@RequestBody Post post){
+        return postService.addAndSavePost(post);
+    }
 }

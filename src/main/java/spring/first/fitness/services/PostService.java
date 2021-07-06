@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface PostService {
 
-    void addAndSavePost(Post role);
+    Post addAndSavePost(Post role);
     List<Post> getAllPosts();
     Post getPost(Long id);
     void deletePost(Long id);
