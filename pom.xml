@@ -84,6 +84,7 @@
     </dependencies>
 
     <build>
+        <finalName>fitness-app</finalName>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
