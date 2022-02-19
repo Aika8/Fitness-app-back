@@ -5,5 +5,7 @@ Swagger:
 http://localhost:8082/swagger-ui/
 
 Docker:
-docker build -t fitness-app.jar .
+
+docker build -t fitness-app.jar . 
+
 docker-compose up
