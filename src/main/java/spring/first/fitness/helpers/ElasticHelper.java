@@ -1,14 +1,15 @@
 package spring.first.fitness.helpers;
 
+import net.bytebuddy.dynamic.scaffold.MethodGraph;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.annotations.FieldType;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
-import spring.first.fitness.util.DateUtil;
 
 import java.lang.reflect.Field;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -34,22 +35,14 @@ public class ElasticHelper {
 
 
     public static void applyFilterMap(Map<String, Object> filter, BoolQueryBuilder boolQueryBuilder, String idxName) {
-        if (filter != null && !filter.isEmpty()) {
-            for (Map.Entry<String, Object> entry : filter.entrySet()) {
-                boolQueryBuilder.must(
-                        isKeyword(idxName, entry.getKey()) ?
-                                QueryBuilders.termQuery(entry.getKey(), entry.getValue()) :
-                                isDate(entry.getValue()) ?
-                                        QueryBuilders.matchPhraseQuery(entry.getKey(), entry.getValue()) :
-                                        isBool(entry.getValue()) ?
-                                                QueryBuilders.termQuery(entry.getKey(), entry.getValue()) :
-                                                isNumeric(idxName, entry.getKey(), entry.getValue()) ?
-                                                        QueryBuilders.termQuery(entry.getKey(), entry.getValue()) :
-
-                                                        QueryBuilders.matchPhrasePrefixQuery(entry.getKey(), entry.getValue())
-                );
+            LinkedHashMap<String, Object> map = (LinkedHashMap<String, Object>) filter;
+            float i = filter.size();
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                    boolQueryBuilder.should(
+                            QueryBuilders.matchPhraseQuery(entry.getKey(), entry.getValue()).boost(i)
+                    );
+                    i--;
             }
-        }
     }
 
 
@@ -80,47 +73,4 @@ public class ElasticHelper {
 
         return false;
     }
-
-    private static boolean isDate(Object fieldVal) {
-        if (fieldVal instanceof String)
-            return DateUtil.isValidDate((String) fieldVal);
-
-        return false;
-    }
-
-    private static boolean isBool(Object fieldVal) {
-        return fieldVal instanceof Boolean ||
-                "true".equals(fieldVal) ||
-                "false".equals(fieldVal);
-    }
-
-    private static boolean isNumeric(String idxName, String fieldName, Object fieldVal) {
-        if (fieldVal instanceof Integer ||
-                fieldVal instanceof Double ||
-                fieldVal instanceof Float) {
-            Set<Class<?>> idxClasses = ElasticConstants.getByIdxName(idxName);
-
-            for (Class<?> c : idxClasses) {
-                Field field;
-
-                try {
-                    field = c.getDeclaredField(fieldName);
-
-                    org.springframework.data.elasticsearch.annotations.Field typeAnn =
-                            field.getAnnotation(org.springframework.data.elasticsearch.annotations.Field.class);
-
-                    return typeAnn != null && (
-                            typeAnn.type().equals(FieldType.Integer) ||
-                                    typeAnn.type().equals(FieldType.Float) ||
-                                    typeAnn.type().equals(FieldType.Double)
-                    );
-                } catch (NoSuchFieldException ignored) {
-                }
-            }
-        }
-
-        return false;
-    }
-
-
 }

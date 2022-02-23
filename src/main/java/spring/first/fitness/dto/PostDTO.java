@@ -24,6 +24,7 @@ public class PostDTO {
     private Long id;
     private String cover;
     private Integer access;
+    private Integer priority;
     @JsonFormat(pattern = DateUtil.DEFAULT_DATE_PATTERN)
     @JsonSerialize(using = LocalDateTimeSerializer.class)
     @JsonDeserialize(using = LocalDateTimeDeserializer.class)

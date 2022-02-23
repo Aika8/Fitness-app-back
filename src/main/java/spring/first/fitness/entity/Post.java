@@ -29,6 +29,8 @@ public class Post {
 
     private Integer access;
 
+    private Integer priority;
+
     @Column(name = "creation_date")
     @JsonFormat(pattern = DateUtil.DEFAULT_DATE_PATTERN)
     private LocalDateTime dateOfCreation;

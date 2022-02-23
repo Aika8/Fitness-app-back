@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.elasticsearch.core.query.NativeSearchQuery;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
 import org.springframework.stereotype.Service;
 import spring.first.fitness.dto.PostDTO;
@@ -45,6 +46,7 @@ public class PostServiceImpl implements PostService {
                     .id(post.getId())
                     .access(post.getAccess())
                     .cover(post.getCover())
+                    .priority(post.getPriority())
                     .dateOfCreation(post.getDateOfCreation() != null ? post.getDateOfCreation() : LocalDateTime.now())
                     .users(post.getUsers())
                     .build();
@@ -70,28 +72,47 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public Page<PostDTO> getAllPosts(Map<String, Object> filter, Pageable pageable) {
-        log.info("Filter: {}", filter);
+        Page<PostDTO> dto;
+        if (filter != null && !filter.isEmpty()) {
+            log.info("Filter: {}", filter);
+            NativeSearchQueryBuilder nativeSearchQueryBuilder = ElasticHelper.nativeQueryBuilder(filter, pageable, getIndex());
+            NativeSearchQuery query = nativeSearchQueryBuilder.build();
+            log.info("Query: {}", query.getQuery());
 
-        NativeSearchQueryBuilder nativeSearchQueryBuilder = ElasticHelper.nativeQueryBuilder(filter, pageable, getIndex());
+            Page<ElasticPost> postModels = elasticPostRepository.search(query);
+            dto = postModels.map(entity -> {
+                Post post1 = postRepository.findById(entity.getPostId())
+                        .orElseThrow(() -> new NoSuchElementException("No records with such an id: " + entity.getPostId()));
+                return PostDTO.builder()
+                        .id(post1.getId())
+                        .access(post1.getAccess())
+                        .cover(post1.getCover())
+                        .dateOfCreation(post1.getDateOfCreation())
+                        .users(post1.getUsers())
+                        .priority(post1.getPriority())
+                        .brief(entity.getBrief())
+                        .title(entity.getTitle())
+                        .description(entity.getDescription())
+                        .build();
+            });
 
-        log.info("Query: {}", nativeSearchQueryBuilder);
-
-        Page<ElasticPost> postModels = elasticPostRepository.search(nativeSearchQueryBuilder.build());
-        Page<PostDTO> dto = postModels.map(entity -> {
-            Post post1 = postRepository.findById(entity.getPostId())
-                    .orElseThrow(() -> new NoSuchElementException("ошибка сервера, нет поста с таким id"));
-            return PostDTO.builder()
-                    .id(post1.getId())
-                    .access(post1.getAccess())
-                    .cover(post1.getCover())
-                    .dateOfCreation(post1.getDateOfCreation())
-                    .users(post1.getUsers())
-                    .brief(entity.getBrief())
-                    .title(entity.getTitle())
-                    .description(entity.getDescription())
-                    .build();
-        });
-
+        } else {
+            dto = postRepository.findAllByOrderByPriorityAsc(pageable).map(post1 -> {
+                ElasticPost entity = elasticPostRepository.findById(post1.getId())
+                        .orElseThrow(() -> new NoSuchElementException("No records with such an id: " + post1.getId()));
+                return PostDTO.builder()
+                        .id(post1.getId())
+                        .access(post1.getAccess())
+                        .cover(post1.getCover())
+                        .dateOfCreation(post1.getDateOfCreation())
+                        .users(post1.getUsers())
+                        .priority(post1.getPriority())
+                        .brief(entity.getBrief())
+                        .title(entity.getTitle())
+                        .description(entity.getDescription())
+                        .build();
+            });
+        }
         log.info("data: " + dto);
 
         return dto;
@@ -106,21 +127,22 @@ public class PostServiceImpl implements PostService {
     @Override
     public PostDTO getPost(Long id) {
         AtomicReference<PostDTO> dto = new AtomicReference<>();
-        postRepository.findById(id).ifPresent(post1 -> {
-            ElasticPost elPost = elasticPostRepository.findById(id)
-                    .orElseThrow(() -> new NoSuchElementException("ошибка сервера, нет поста с таким id"));
-            dto.set(PostDTO.builder()
-                    .id(post1.getId())
-                    .access(post1.getAccess())
-                    .cover(post1.getCover())
-                    .dateOfCreation(post1.getDateOfCreation())
-                    .users(post1.getUsers())
-                    .brief(elPost.getBrief())
-                    .title(elPost.getTitle())
-                    .description(elPost.getDescription())
-                    .build());
+        Post post1 = postRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("No records with such an id: " + id));
 
-        });
+        ElasticPost elPost = elasticPostRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("No records with such an id: " + id));
+        dto.set(PostDTO.builder()
+                .id(post1.getId())
+                .access(post1.getAccess())
+                .cover(post1.getCover())
+                .priority(post1.getPriority())
+                .dateOfCreation(post1.getDateOfCreation())
+                .users(post1.getUsers())
+                .brief(elPost.getBrief())
+                .title(elPost.getTitle())
+                .description(elPost.getDescription())
+                .build());
 
         log.info("data: " + dto.get());
         return dto.get();
